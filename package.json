@@ -1,18 +1,25 @@
 {
-  "name": "durable-object",
+  "name": "durable-channel",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "websocket": "npx tsx lib/durable-channel/web-socket.ts",
+    "test-ws-client": "npx tsx lib/durable-channel/test-client.ts"
   },
   "dependencies": {
-    "next": "15.5.3"
+    "@vercel/sandbox": "^0.0.21",
+    "nanoid": "^5.1.5",
+    "next": "15.5.3",
+    "redis": "^5.8.2",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
-    "@types/react": "^19"
+    "@types/react": "^19",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5"
   }
 }
