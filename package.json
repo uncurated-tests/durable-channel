@@ -6,14 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "websocket": "npx tsx lib/durable-channel/web-socket.ts",
-    "test-ws-client": "npx tsx lib/durable-channel/test-client.ts"
+    "websocket": "pnpx tsx lib/durable-channel/web-socket.ts",
+    "test-ws-client": "pnpx tsx lib/durable-channel/test-client.ts"
   },
   "dependencies": {
     "@vercel/sandbox": "^0.0.21",
     "nanoid": "^5.1.5",
     "next": "15.5.3",
     "redis": "^5.8.2",
+    "tsx": "^4.20.5",
     "ws": "^8.18.0"
   },
   "devDependencies": {

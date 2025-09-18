@@ -1,17 +1,54 @@
 import { Sandbox } from "@vercel/sandbox";
+import { createClient } from "redis";
 
 if (!process.env.REDIS_URL) {
   throw new Error("REDIS_URL is not set");
 }
 
+const redisClient = createClient({
+  url: process.env.REDIS_URL,
+});
+const redisPromise = redisClient.connect();
+
+const timeout = 1000 * 60 * 15;
+
+const VERSION = ":3";
+
 export async function startSandboxServer() {
+  await redisPromise;
+  const active = await redisClient.get("durable-channel:sandbox" + VERSION);
+  if (active === "pending") {
+    console.log("Polling for sandbox server");
+    return new Promise(async (resolve) => {
+      while (true) {
+        const active = await redisClient.get(
+          "durable-channel:sandbox" + VERSION
+        );
+        if (active && active !== "pending") {
+          const { domain, expiresAt } = JSON.parse(active);
+          resolve(domain);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    });
+  }
+  if (active) {
+    const { domain, expiresAt } = JSON.parse(active);
+    if (expiresAt > Date.now()) {
+      console.log("Sandbox server is active", domain);
+      return domain;
+    }
+  }
+  await redisClient.set("durable-channel:sandbox" + VERSION, "pending");
+
+  console.log(`Starting sandbox server...`);
   const sandbox = await Sandbox.create({
     source: {
-      url: "git@github.com:uncurated-tests/durable-channel.git",
+      url: "https://github.com/uncurated-tests/durable-channel.git",
       type: "git",
     },
     resources: { vcpus: 4 },
-    timeout: 1000 * 60 * 2,
+    timeout,
     ports: [9000],
     runtime: "node22",
   });
@@ -33,7 +70,7 @@ export async function startSandboxServer() {
   }
 
   console.log(`Starting server...`);
-  await sandbox.runCommand({
+  const startPromise = sandbox.runCommand({
     cmd: "pnpm",
     args: ["websocket"],
     detached: true,
@@ -43,6 +80,27 @@ export async function startSandboxServer() {
       REDIS_URL: process.env.REDIS_URL || "required",
     },
   });
+  startPromise.then(async (cmd) => {
+    for await (const log of cmd.logs()) {
+      if (log.stream === "stdout") {
+        process.stdout.write(log.data);
+      } else {
+        process.stderr.write(log.data);
+      }
+    }
+  });
+  startPromise.catch(async (error) => {
+    console.error("Starting server failed", error);
+    await redisClient.del("durable-channel:sandbox" + VERSION);
+  });
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  await redisClient.set(
+    "durable-channel:sandbox" + VERSION,
+    JSON.stringify({
+      domain: sandbox.domain(9000),
+      expiresAt: Date.now() + timeout,
+    })
+  );
 
   return sandbox.domain(9000);
 }
