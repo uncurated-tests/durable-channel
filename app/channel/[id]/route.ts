@@ -2,16 +2,14 @@ import {
   forwardChannelMessage,
   subscribeChannelMessages,
 } from "@/lib/durable-channel";
-import { nanoid } from "nanoid";
 
 export const POST = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) => {
   const { id } = await params;
-  const messageId = nanoid();
   const body = await request.text();
-  const result = await forwardChannelMessage(id, messageId, body);
+  const result = await forwardChannelMessage(id, body);
   return Response.json({ result });
 };
 

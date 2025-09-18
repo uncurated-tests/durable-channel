@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { after } from "next/server";
 import { createClient } from "redis";
 
@@ -61,12 +62,18 @@ const activeChannels = new Map<string, DurableChannelHolder>();
 
 export const forwardChannelMessage = async (
   channelId: string,
-  messageId: string,
   message: string
 ) => {
+  const impl = await maybeStartImplementation(channelId);
+  return impl.processMessageWithReturn(message);
+};
+
+export async function maybeStartImplementation(
+  channelId: string
+): Promise<DurableChannelInterface> {
   if (activeChannels.has(channelId)) {
     log(`Current worker is assigned to channel ${channelId}`);
-    return activeChannels.get(channelId)!.processMessageWithReturn(message);
+    return activeChannels.get(channelId)!;
   }
   await Promise.all([publishPromise, subscribePromise]);
   const isActive = await redisPublisher.incr(
@@ -74,29 +81,38 @@ export const forwardChannelMessage = async (
   );
   if (isActive > 1) {
     log(`Another worker is assigned to channel ${channelId}`);
-    return new Promise((resolve) => async () => {
-      await redisSubscriber.subscribe(
-        getMessageKey(channelId, messageId),
-        async (message: string) => {
-          log(
-            `[Remote] Received response message for channel ${channelId} ${message}`
+    const messageId = nanoid();
+    return {
+      processMessageWithReturn: async (message: string) => {
+        return new Promise((resolve) => async () => {
+          await redisSubscriber.subscribe(
+            getMessageKey(channelId, messageId),
+            async (message: string) => {
+              log(
+                `[Remote] Received response message for channel ${channelId} ${message}`
+              );
+              await redisSubscriber.unsubscribe(
+                getMessageKey(channelId, messageId)
+              );
+              const { result } = JSON.parse(message);
+              resolve(result);
+            }
           );
-          await redisSubscriber.unsubscribe(
-            getMessageKey(channelId, messageId)
+          await redisPublisher.publish(
+            getChannelKey(channelId, "publish"),
+            JSON.stringify({
+              messageId,
+              message,
+            })
           );
-          const { result } = JSON.parse(message);
-          resolve(result);
-        }
-      );
-      await redisPublisher.publish(
-        getChannelKey(channelId, "publish"),
-        JSON.stringify({
-          messageId,
-          message,
-        })
-      );
-    });
+        });
+      },
+    };
   }
+  return startImplementation(channelId);
+}
+
+async function startImplementation(channelId: string) {
   log(`Starting worker for channel ${channelId}`);
   await redisSubscriber.subscribe(
     getChannelKey(channelId, "publish"),
@@ -154,9 +170,8 @@ export const forwardChannelMessage = async (
   };
   process.on("SIGTERM", cleanup);
   process.on("SIGINT", cleanup);
-
-  return holder.processMessageWithReturn(message);
-};
+  return holder;
+}
 
 interface DurableChannelHolder extends DurableChannelInterface {
   timeout?: ReturnType<typeof setTimeout>;
