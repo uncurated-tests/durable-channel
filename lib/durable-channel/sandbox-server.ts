@@ -12,7 +12,7 @@ const redisPromise = redisClient.connect();
 
 const timeout = 1000 * 60 * 15;
 
-const VERSION = ":3";
+const VERSION = ":4";
 
 export async function startSandboxServer() {
   await redisPromise;

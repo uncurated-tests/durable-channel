@@ -43,14 +43,17 @@ async function startWebSocketServer(port: number = 8080) {
       return;
     }
 
-    console.log(`WebSocket connected for channel: ${channelId}`);
+    console.log(`[ws] WebSocket connected for channel: ${channelId}`);
 
     const publishTopic = getChannelKey(channelId, "publish");
     const subscribeTopic = getChannelKey(channelId, "subscribe");
 
     const messageHandler = (message: string) => {
+      console.log(`[ws] Received message for channel ${channelId}: ${message}`);
       if (ws.readyState === ws.OPEN) {
         ws.send(message);
+      } else {
+        console.log(`[ws] WebSocket not open for channel ${channelId}`);
       }
     };
 
@@ -59,38 +62,40 @@ async function startWebSocketServer(port: number = 8080) {
     ws.on("message", async (data) => {
       try {
         const message = data.toString();
-        console.log(`Received message for channel ${channelId}: ${message}`);
+        console.log(
+          `[ws] Received message for channel ${channelId}: ${message}`
+        );
 
         await redisPublisher.publish(publishTopic, message);
-        console.log(`Published message to ${publishTopic}: ${message}`);
+        console.log(`[ws] Published message to ${publishTopic}: ${message}`);
       } catch (error) {
-        console.error("Error handling message:", error);
+        console.error("[ws] Error handling message:", error);
       }
     });
 
     ws.on("close", async () => {
-      console.log(`WebSocket disconnected for channel: ${channelId}`);
+      console.log(`[ws] WebSocket disconnected for channel: ${channelId}`);
       try {
         await redisSubscriber.unsubscribe(subscribeTopic);
       } catch (error) {
-        console.error("Error unsubscribing:", error);
+        console.error("[ws] Error unsubscribing:", error);
       }
     });
 
     ws.on("error", (error) => {
-      console.error(`WebSocket error for channel ${channelId}:`, error);
+      console.error(`[ws] WebSocket error for channel ${channelId}:`, error);
     });
   });
 
   server.listen(port, () => {
-    console.log(`WebSocket server started on port ${port}`);
+    console.log(`[ws] WebSocket server started on port ${port}`);
     console.log(
       `Connect with: ws://localhost:${port}?channelId=your-channel-id`
     );
   });
 
   const cleanup = async () => {
-    console.log("Shutting down WebSocket server...");
+    console.log("[ws] Shutting down WebSocket server...");
     wss.close();
     server.close();
     await redisSubscriber.quit();

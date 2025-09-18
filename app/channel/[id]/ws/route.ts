@@ -6,7 +6,8 @@ export async function GET(
 ) {
   const { id } = await params;
   const domain = await startSandboxServer();
-  const url = `wss://${domain}/?channelId=${id}`;
+  const serverUrl = new URL(domain);
+  const url = `wss://${serverUrl.host}/?channelId=${id}`;
   console.log(`WebSocket URL: ${url}`);
   return Response.json({
     url,

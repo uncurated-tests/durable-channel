@@ -20,7 +20,7 @@ export function WSTestPageClient({ id }: { id: string }) {
           throw new Error(`Failed to get WebSocket URL: ${response.status}`);
         }
 
-        const wsUrl = await response.text();
+        const { url: wsUrl } = await response.json();
         console.log("Retrieved WebSocket URL:", wsUrl);
 
         // Connect to the WebSocket
@@ -62,7 +62,12 @@ export function WSTestPageClient({ id }: { id: string }) {
   }, [id]);
 
   const sendMessage = () => {
-    if (!inputMessage.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (
+      !inputMessage.trim() ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    )
+      return;
 
     setIsSending(true);
     try {
@@ -120,7 +125,8 @@ export function WSTestPageClient({ id }: { id: string }) {
               border: "none",
               borderRadius: "4px",
               cursor: "pointer",
-              opacity: isSending || !inputMessage.trim() || !isConnected ? 0.6 : 1,
+              opacity:
+                isSending || !inputMessage.trim() || !isConnected ? 0.6 : 1,
             }}
           >
             {isSending ? "Sending..." : "Send"}
@@ -173,7 +179,8 @@ export function WSTestPageClient({ id }: { id: string }) {
             Type a message in the input field and click "Send" or press Enter
           </li>
           <li>
-            The message will be sent via WebSocket to <code>/channel/{id}/ws</code>
+            The message will be sent via WebSocket to{" "}
+            <code>/channel/{id}/ws</code>
           </li>
           <li>
             You should see the message appear in the "Received Messages" section
