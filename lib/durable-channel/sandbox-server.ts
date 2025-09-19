@@ -12,7 +12,7 @@ const redisPromise = redisClient.connect();
 
 const timeout = 1000 * 60 * 15;
 
-const VERSION = ":7";
+const VERSION = "7";
 
 function getSandboxKey() {
   return `durable-channel:sandbox:${VERSION}:${
@@ -99,7 +99,7 @@ export async function startSandboxServer() {
   });
   await new Promise((resolve) => setTimeout(resolve, 1000));
   await redisClient.set(
-    "durable-channel:sandbox" + VERSION,
+    getSandboxKey(),
     JSON.stringify({
       domain: sandbox.domain(9000),
       expiresAt: Date.now() + timeout,
