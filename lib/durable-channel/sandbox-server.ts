@@ -97,7 +97,7 @@ export async function startSandboxServer() {
     console.error("Starting server failed", error);
     await redisClient.del(getSandboxKey());
   });
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 3000));
   await redisClient.set(
     getSandboxKey(),
     JSON.stringify({
