@@ -10,7 +10,7 @@ const redisClient = createClient({
 });
 const redisPromise = redisClient.connect();
 
-const timeout = 1000 * 60 * 60 * 2;
+const timeout = 1000 * 60 * 15;
 
 const VERSION = "9";
 
