@@ -7,28 +7,49 @@ export function SSETestPageClient({ id }: { id: string }) {
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const eventSource = new EventSource(`/channel/${id}`);
+    const initializeConnection = async () => {
+      try {
+        // First, download initial messages via GET request
+        const response = await fetch(`/channel/chat-${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.messages && Array.isArray(data.messages)) {
+            setMessages(data.messages);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading initial messages:", error);
+      } finally {
+        setIsLoading(false);
+      }
 
-    eventSource.onopen = () => {
-      setIsConnected(true);
-      console.log("SSE connection opened");
+      // Then establish SSE connection
+      const eventSource = new EventSource(`/channel/chat-${id}/sse`);
+
+      eventSource.onopen = () => {
+        setIsConnected(true);
+        console.log("SSE connection opened");
+      };
+
+      eventSource.onmessage = (event) => {
+        setMessages((prev) => [...prev, event.data]);
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("SSE error:", error);
+        setIsConnected(false);
+      };
+
+      return () => {
+        eventSource.close();
+        setIsConnected(false);
+      };
     };
 
-    eventSource.onmessage = (event) => {
-      setMessages((prev) => [...prev, event.data]);
-    };
-
-    eventSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      setIsConnected(false);
-    };
-
-    return () => {
-      eventSource.close();
-      setIsConnected(false);
-    };
+    initializeConnection();
   }, [id]);
 
   const postMessage = async () => {
@@ -36,7 +57,7 @@ export function SSETestPageClient({ id }: { id: string }) {
 
     setIsPosting(true);
     try {
-      const response = await fetch(`/channel/${id}`, {
+      const response = await fetch(`/channel/chat-${id}`, {
         method: "POST",
         body: inputMessage,
         headers: {
@@ -121,9 +142,13 @@ export function SSETestPageClient({ id }: { id: string }) {
             overflowY: "auto",
           }}
         >
-          {messages.length === 0 ? (
+          {isLoading ? (
             <div style={{ color: "#666", fontStyle: "italic" }}>
-              No messages received yet. Post a message to see it appear here.
+              Loading messages...
+            </div>
+          ) : messages.length === 0 ? (
+            <div style={{ color: "#666", fontStyle: "italic" }}>
+              No messages yet. Post a message to see it appear here.
             </div>
           ) : (
             messages.map((message, index) => (
@@ -143,28 +168,6 @@ export function SSETestPageClient({ id }: { id: string }) {
             ))
           )}
         </div>
-      </div>
-
-      <div style={{ marginTop: "20px", fontSize: "14px", color: "#666" }}>
-        <p>
-          <strong>How to use:</strong>
-        </p>
-        <ul>
-          <li>
-            Type a message in the input field and click "Post" or press Enter
-          </li>
-          <li>
-            The message will be posted to <code>/channel/{id}</code>
-          </li>
-          <li>
-            You should see the message appear in the "Received Messages" section
-            via SSE
-          </li>
-          <li>
-            Open this page in multiple tabs to see real-time message
-            broadcasting
-          </li>
-        </ul>
       </div>
     </div>
   );

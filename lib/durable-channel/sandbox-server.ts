@@ -12,7 +12,7 @@ const redisPromise = redisClient.connect();
 
 const timeout = 1000 * 60 * 15;
 
-const VERSION = ":5";
+const VERSION = ":6";
 
 export async function startSandboxServer() {
   await redisPromise;
@@ -93,7 +93,7 @@ export async function startSandboxServer() {
     console.error("Starting server failed", error);
     await redisClient.del("durable-channel:sandbox" + VERSION);
   });
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   await redisClient.set(
     "durable-channel:sandbox" + VERSION,
     JSON.stringify({

@@ -66,7 +66,10 @@ async function startWebSocketServer(port: number = 8080) {
           `[ws] Received message for channel ${channelId}: ${message}`
         );
 
-        await redisPublisher.publish(publishTopic, JSON.stringify({ message }));
+        await redisPublisher.publish(
+          publishTopic,
+          JSON.stringify({ type: "POST", message })
+        );
         console.log(`[ws] Published message to ${publishTopic}: ${message}`);
       } catch (error) {
         console.error("[ws] Error handling message:", error);

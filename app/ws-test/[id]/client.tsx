@@ -7,6 +7,7 @@ export function WSTestPageClient({ id }: { id: string }) {
   const [inputMessage, setInputMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -14,8 +15,20 @@ export function WSTestPageClient({ id }: { id: string }) {
 
     const connectWebSocket = async () => {
       try {
+        // First, download initial messages via GET request
+        const messagesResponse = await fetch(`/channel/chat-${id}`);
+        if (messagesResponse.ok) {
+          const data = await messagesResponse.json();
+          console.log("Initial messages data:", data);
+          if (data.messages && Array.isArray(data.messages)) {
+            console.log("Setting initial messages:", data.messages);
+            setMessages(data.messages);
+          }
+        }
+        setIsLoading(false);
+
         // Fetch the WebSocket URL from the endpoint
-        const response = await fetch(`/channel/${id}/ws`);
+        const response = await fetch(`/channel/chat-${id}/ws`);
         if (!response.ok) {
           throw new Error(`Failed to get WebSocket URL: ${response.status}`);
         }
@@ -27,13 +40,30 @@ export function WSTestPageClient({ id }: { id: string }) {
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
+        console.log("Setting up WebSocket handlers for URL:", wsUrl);
+
         ws.onopen = () => {
           setIsConnected(true);
-          console.log("WebSocket connection opened");
+          console.log("WebSocket connection opened successfully");
         };
 
         ws.onmessage = (event) => {
-          setMessages((prev) => [...prev, event.data]);
+          console.log(
+            "WebSocket received message:",
+            event.data,
+            "Type:",
+            typeof event.data
+          );
+          setMessages((prev) => {
+            const newMessages = [...prev, event.data];
+            console.log(
+              "Updated messages array length:",
+              newMessages.length,
+              "Content:",
+              newMessages
+            );
+            return newMessages;
+          });
         };
 
         ws.onerror = (error) => {
@@ -48,6 +78,7 @@ export function WSTestPageClient({ id }: { id: string }) {
       } catch (error) {
         console.error("Error connecting to WebSocket:", error);
         setIsConnected(false);
+        setIsLoading(false);
       }
     };
 
@@ -146,9 +177,13 @@ export function WSTestPageClient({ id }: { id: string }) {
             overflowY: "auto",
           }}
         >
-          {messages.length === 0 ? (
+          {isLoading ? (
             <div style={{ color: "#666", fontStyle: "italic" }}>
-              No messages received yet. Send a message to see it appear here.
+              Loading messages...
+            </div>
+          ) : messages.length === 0 ? (
+            <div style={{ color: "#666", fontStyle: "italic" }}>
+              No messages yet. Send a message to see it appear here.
             </div>
           ) : (
             messages.map((message, index) => (
@@ -168,28 +203,6 @@ export function WSTestPageClient({ id }: { id: string }) {
             ))
           )}
         </div>
-      </div>
-
-      <div style={{ marginTop: "20px", fontSize: "14px", color: "#666" }}>
-        <p>
-          <strong>How to use:</strong>
-        </p>
-        <ul>
-          <li>
-            Type a message in the input field and click "Send" or press Enter
-          </li>
-          <li>
-            The message will be sent via WebSocket to{" "}
-            <code>/channel/{id}/ws</code>
-          </li>
-          <li>
-            You should see the message appear in the "Received Messages" section
-          </li>
-          <li>
-            Open this page in multiple tabs to see real-time message
-            broadcasting
-          </li>
-        </ul>
       </div>
     </div>
   );

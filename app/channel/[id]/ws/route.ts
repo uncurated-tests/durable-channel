@@ -1,4 +1,4 @@
-import { maybeStartImplementation } from "@/lib/durable-channel";
+import { maybeStartImplementation } from "@/lib/durable-channel/base";
 import { startSandboxServer } from "@/lib/durable-channel/sandbox-server";
 
 export async function GET(
