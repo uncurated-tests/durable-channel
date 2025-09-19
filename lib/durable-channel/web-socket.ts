@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { createClient } from "redis";
 import { URL } from "url";
+import { jweDecrypt } from "./jwe";
 
 if (!process.env.REDIS_URL) {
   throw new Error("REDIS_URL is not set");
@@ -16,12 +17,8 @@ const redisPublisher = createClient({
   url: process.env.REDIS_URL,
 });
 
-const tenantId =
-  (process.env.VERCEL_PROJECT_ID || "local") +
-  ":" +
-  (process.env.VERCEL_TARGET_ENV || "dev");
-
 function getChannelKey(
+  tenantId: string,
   channelId: string,
   purpose: "publish" | "subscribe" | "instance"
 ) {
@@ -36,7 +33,17 @@ async function startWebSocketServer(port: number = 8080) {
 
   wss.on("connection", async (ws, req) => {
     const url = new URL(req.url!, `https://${req.headers.host}`);
-    const channelId = url.searchParams.get("channelId");
+    const jwe = url.searchParams.get("jwe");
+    if (!jwe) {
+      ws.close(4000, "Missing jwe query parameter");
+      return;
+    }
+    const { channelId, projectId, targetEnv } = jweDecrypt<{
+      channelId: string;
+      projectId: string;
+      targetEnv: string;
+    }>(jwe);
+    const tenantId = `${projectId}:${targetEnv}`;
 
     if (!channelId) {
       ws.close(4000, "Missing channelId query parameter");
@@ -45,8 +52,8 @@ async function startWebSocketServer(port: number = 8080) {
 
     console.log(`[ws] WebSocket connected for channel: ${channelId}`);
 
-    const publishTopic = getChannelKey(channelId, "publish");
-    const subscribeTopic = getChannelKey(channelId, "subscribe");
+    const publishTopic = getChannelKey(tenantId, channelId, "publish");
+    const subscribeTopic = getChannelKey(tenantId, channelId, "subscribe");
 
     const messageHandler = (message: string) => {
       console.log(`[ws] Received message for channel ${channelId}: ${message}`);
