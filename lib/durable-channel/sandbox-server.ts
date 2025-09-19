@@ -12,7 +12,7 @@ const redisPromise = redisClient.connect();
 
 const timeout = 1000 * 60 * 15;
 
-const VERSION = "7";
+const VERSION = "8";
 
 function getSandboxKey() {
   return `durable-channel:sandbox:${VERSION}:${
