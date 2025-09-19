@@ -14,16 +14,20 @@ const timeout = 1000 * 60 * 15;
 
 const VERSION = ":7";
 
+function getSandboxKey() {
+  return `durable-channel:sandbox:${VERSION}:${
+    process.env.VERCEL_PROJECT_ID || "local"
+  }:${process.env.VERCEL_TARGET_ENV || "dev"}`;
+}
+
 export async function startSandboxServer() {
   await redisPromise;
-  const active = await redisClient.get("durable-channel:sandbox" + VERSION);
+  const active = await redisClient.get(getSandboxKey());
   if (active === "pending") {
     console.log("Polling for sandbox server");
     return new Promise(async (resolve) => {
       while (true) {
-        const active = await redisClient.get(
-          "durable-channel:sandbox" + VERSION
-        );
+        const active = await redisClient.get(getSandboxKey());
         if (active && active !== "pending") {
           const { domain, expiresAt } = JSON.parse(active);
           resolve(domain);
@@ -39,7 +43,7 @@ export async function startSandboxServer() {
       return domain;
     }
   }
-  await redisClient.set("durable-channel:sandbox" + VERSION, "pending");
+  await redisClient.set(getSandboxKey(), "pending");
 
   console.log(`Starting sandbox server...`);
   const sandbox = await Sandbox.create({
@@ -91,7 +95,7 @@ export async function startSandboxServer() {
   });
   startPromise.catch(async (error) => {
     console.error("Starting server failed", error);
-    await redisClient.del("durable-channel:sandbox" + VERSION);
+    await redisClient.del(getSandboxKey());
   });
   await new Promise((resolve) => setTimeout(resolve, 1000));
   await redisClient.set(
