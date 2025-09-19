@@ -186,9 +186,9 @@ export function WSTestPageClient({ id }: { id: string }) {
               No messages yet. Send a message to see it appear here.
             </div>
           ) : (
-            messages.map((message, index) => (
+            [...messages].reverse().map((message, index) => (
               <div
-                key={index}
+                key={message}
                 style={{
                   marginBottom: "8px",
                   padding: "8px",
