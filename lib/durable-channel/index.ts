@@ -1,5 +1,5 @@
 export interface DurableChannelInterface {
-  POST: (request: Request) => Promise<Response | void>;
+  POST: (request: Request) => Promise<void>;
   GET: (request: Request) => Promise<Response>;
 }
 
@@ -16,7 +16,7 @@ export class Durable implements DurableChannelInterface {
     await this.publishToSubscribers(this.channelId, message);
   }
 
-  async POST(request: Request): Promise<Response | void> {
+  async POST(request: Request): Promise<void> {
     throw new Error("Not implemented");
   }
 

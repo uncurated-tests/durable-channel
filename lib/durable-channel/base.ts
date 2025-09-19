@@ -89,10 +89,11 @@ export async function maybeStartImplementation(
   );
   if (isActive > 1) {
     log(`Another worker is assigned to channel ${channelId}`);
-    const messageId = nanoid();
+
     return {
       POST: async (request: Request) => {
-        return new Promise((resolve) => async () => {
+        return new Promise(async (resolve) => {
+          const messageId = nanoid();
           await redisSubscriber.subscribe(
             getMessageKey(channelId, messageId),
             async (message: string) => {
@@ -106,6 +107,9 @@ export async function maybeStartImplementation(
               resolve(result);
             }
           );
+          log(
+            `[Remote] Publishing POST request for channel ${channelId} ${await request.text()}`
+          );
           await redisPublisher.publish(
             getChannelKey(channelId, "publish"),
             JSON.stringify({
@@ -118,7 +122,9 @@ export async function maybeStartImplementation(
         });
       },
       GET: async () => {
-        return new Promise((resolve) => async () => {
+        log(`[Remote] Received GET request for channel ${channelId}`);
+        return new Promise(async (resolve) => {
+          const messageId = nanoid();
           await redisSubscriber.subscribe(
             getMessageKey(channelId, messageId),
             async (message: string) => {
@@ -129,9 +135,10 @@ export async function maybeStartImplementation(
                 getMessageKey(channelId, messageId)
               );
               const { result } = JSON.parse(message);
-              resolve(result);
+              resolve(new Response(result));
             }
           );
+          log(`[Remote] Publishing GET request for channel ${channelId}`);
           await redisPublisher.publish(
             getChannelKey(channelId, "publish"),
             JSON.stringify({
@@ -156,22 +163,27 @@ async function startImplementation(
       log(`Received publish message for channel ${channelId} ${redisMessage}`);
       const { message, messageId, type } = JSON.parse(redisMessage);
       const holder = activeDurables.get(channelId)!;
-      const result = await (type === "POST"
-        ? holder.impl.POST
-        : holder.impl.GET
-      ).call(
-        holder.impl,
-        new Request("http://localhost", { method: "POST", body: message })
-      );
-      const body = result ? await result.text() : null;
+      let body: string | null = null;
+      if (type === "POST") {
+        await holder.impl.POST(
+          new Request("http://localhost", { method: "POST", body: message })
+        );
+      } else {
+        const result = await holder.impl.GET(
+          new Request("http://localhost", { method: "GET" })
+        );
+        body = result ? await result.text() : null;
+      }
       log(`Sending response message for channel ${channelId} ${body}`);
-      await redisPublisher.publish(
-        getMessageKey(channelId, messageId),
-        JSON.stringify({
-          messageId,
-          result: body,
-        })
-      );
+      if (messageId) {
+        await redisPublisher.publish(
+          getMessageKey(channelId, messageId),
+          JSON.stringify({
+            messageId,
+            result: body,
+          })
+        );
+      }
     }
   );
   const impl = getImplementation(channelId);

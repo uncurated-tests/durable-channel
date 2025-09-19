@@ -5,8 +5,8 @@ export const POST = async (
   { params }: { params: Promise<{ id: string }> }
 ) => {
   const { id } = await params;
-  const result = await durablePOST(id, request);
-  return result ? result : new Response(null, { status: 204 });
+  await durablePOST(id, request);
+  return new Response(null, { status: 204 });
 };
 
 export const GET = async (
