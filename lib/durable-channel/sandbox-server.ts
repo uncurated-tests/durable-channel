@@ -10,7 +10,7 @@ const redisClient = createClient({
 });
 const redisPromise = redisClient.connect();
 
-const timeout = 1000 * 60 * 15;
+const timeout = 1000 * 60 * 60 * 2;
 
 const VERSION = "9";
 
@@ -27,6 +27,7 @@ export async function startSandboxServer() {
     console.log("Polling for sandbox server");
     return new Promise(async (resolve) => {
       while (true) {
+        // TODO Add a timeout
         const active = await redisClient.get(getSandboxKey());
         if (active && active !== "pending") {
           const { domain, expiresAt } = JSON.parse(active);
