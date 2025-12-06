@@ -12,7 +12,7 @@
   "dependencies": {
     "@vercel/sandbox": "^0.0.21",
     "nanoid": "^5.1.5",
-    "next": "15.5.3",
+    "next": "15.5.7",
     "redis": "^5.8.2",
     "tsx": "^4.20.5",
     "ws": "^8.18.0"
